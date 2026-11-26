@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="hr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>Kajak 3D</title>
+<link href="maplibre-gl.css" rel="stylesheet">
+<script src="maplibre-gl.js"></script>
+<style>
+:root{--acc:#ff5a1f;--glass:rgba(12,18,24,.78);--ink:#f2f5f7;--dim:#9aa7b1}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:#0b1116;color:var(--ink);font:15px/1.4 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;overflow:hidden}
+#map{position:absolute;inset:0}
+.top{position:absolute;top:10px;left:10px;right:56px;display:flex;gap:8px;align-items:flex-start;justify-content:space-between;pointer-events:none}
+.top>*{pointer-events:auto}
+.title{background:var(--glass);border-radius:12px;padding:8px 12px;min-width:0}
+.title b{display:block;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.title span{color:var(--dim);font-size:13px}
+.live{display:none;margin-left:6px;background:#d92626;color:#fff;border-radius:6px;padding:1px 6px;font-size:12px;font-weight:700;vertical-align:2px}
+body.is-live .live{display:inline-block}
+.file{background:var(--glass);border-radius:12px;padding:12px;cursor:pointer;font-size:14px;white-space:nowrap}
+.file input{display:none}
+.hud{position:absolute;left:10px;right:10px;bottom:10px;background:var(--glass);border-radius:16px;padding:12px 14px}
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-bottom:10px}
+.stats div{min-width:0}
+.stats small{display:block;color:var(--dim);font-size:12px}
+.stats b{font-size:clamp(17px,4.6vw,24px);font-variant-numeric:tabular-nums;white-space:nowrap}
+.row{display:flex;gap:8px;align-items:center}
+button,select{height:44px;border:0;border-radius:10px;background:#26323c;color:var(--ink);font:inherit;font-size:15px;padding:0 12px}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+#play{background:var(--acc);color:#fff;font-weight:600;min-width:84px}
+#seek{flex:1;accent-color:var(--acc);height:44px;min-width:0}
+.opts{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;align-items:center}
+.opts label{display:flex;align-items:center;gap:6px;color:var(--dim);font-size:13px}
+#msg{position:absolute;top:42%;left:50%;transform:translate(-50%,-50%);background:var(--glass);padding:14px 18px;border-radius:12px;display:none;width:min(86vw,420px);text-align:center}
+.maplibregl-ctrl-attrib{font-size:10px}
+body.empty .hud{display:none}
+@media(max-width:480px){.stats{grid-template-columns:repeat(2,minmax(0,1fr))}.title span{display:none}}
+</style>
+</head>
+<body class="empty">
+<div id="map"></div>
+<div class="top">
+  <div class="title"><b><span id="tname">Kajak 3D</span><i class="live">UŽIVO</i></b><span id="tdate">Satelitska karta s reljefom</span></div>
+  <label class="file">Otvori datoteku<input id="fileIn" type="file"></label>
+</div>
+<div id="msg"></div>
+<div class="hud">
+  <div class="stats">
+    <div><small>Udaljenost</small><b id="sDist">0,00 km</b></div>
+    <div><small>Vrijeme kretanja</small><b id="sTime">0:00</b></div>
+    <div><small>Brzina</small><b id="sSpd">0,0 km/h</b></div>
+    <div><small>Prosjek</small><b id="sAvg">0,0 km/h</b></div>
+  </div>
+  <div class="row">
+    <button id="play">▶ Kreni</button>
+    <input id="seek" type="range" min="0" max="1000" value="0" aria-label="Položaj u reprodukciji">
+  </div>
+  <div class="opts">
+    <label>Brzina reprodukcije
+      <select id="rate">
+        <option value="auto" selected>Auto (~40 s)</option>
+        <option value="1">1×</option><option value="5">5×</option><option value="20">20×</option>
+        <option value="60">60×</option><option value="200">200×</option>
+      </select></label>
+    <label><input id="follow" type="checkbox" checked> Kamera prati</label>
+    <button id="overview">Cijela ruta</button>
+  </div>
+</div>
+<script>
+{
+const $ = id => document.getElementById(id);
+const msg = t => { const m=$('msg'); if(!t){m.style.display='none';return;} m.textContent=t; m.style.display='block'; };
+
+// ---------- pomoćne funkcije ----------
+const R=6371000, rad=d=>d*Math.PI/180, deg=r=>r*180/Math.PI;
+function hav(a,b){const p1=rad(a[1]),p2=rad(b[1]),dp=p2-p1,dl=rad(b[0]-a[0]);return 2*R*Math.asin(Math.sqrt(Math.sin(dp/2)**2+Math.cos(p1)*Math.cos(p2)*Math.sin(dl/2)**2));}
+function brg(a,b){const p1=rad(a[1]),p2=rad(b[1]),dl=rad(b[0]-a[0]);return (deg(Math.atan2(Math.sin(dl)*Math.cos(p2),Math.cos(p1)*Math.sin(p2)-Math.sin(p1)*Math.cos(p2)*Math.cos(dl)))+360)%360;}
+const fmtKm = m => (m/1000).toFixed(2).replace('.',',')+' km';
+const fmtKmh = v => (v*3.6).toFixed(1).replace('.',',')+' km/h';
+function fmtT(s){s=Math.max(0,Math.round(s));const h=Math.floor(s/3600),m=Math.floor(s%3600/60),x=s%60;return (h?h+':'+String(m).padStart(2,'0'):m)+':'+String(x).padStart(2,'0');}
+
+// ---------- model ture ----------
+// točka: [lon, lat, vrijeme_s, početakSegmenta(0/1)]
+const MAX_GAP=30; // dulje stanke se u reprodukciji skraćuju na 30 s
+let raw=[], T=null, trackName='Kajak', live=false;
+
+function rebuild(){
+  const pts=[];
+  for(const p of raw){ if(!pts.length||p[2]>pts[pts.length-1][2]) pts.push(p); }
+  if(pts.length<2){T=null;return false;}
+  const cum=[0], mv=[0];
+  for(let i=1;i<pts.length;i++){
+    if(pts[i][3]){cum.push(cum[i-1]);mv.push(mv[i-1]);continue;}
+    cum.push(cum[i-1]+hav(pts[i-1],pts[i]));
+    mv.push(mv[i-1]+Math.min(MAX_GAP,pts[i][2]-pts[i-1][2]));
+  }
+  // linije po segmentima
+  const segs=[];let cur=[];
+  pts.forEach((p,i)=>{ if(p[3]&&cur.length){segs.push(cur);cur=[];} cur.push([p[0],p[1]]); });
+  if(cur.length)segs.push(cur);
+  T={pts,cum,mv,segs,dur:mv[mv.length-1],dist:cum[cum.length-1],t0:pts[0][2]};
+  return true;
+}
+function header(){
+  $('tname').textContent=trackName;
+  if(!T){$('tdate').textContent='';return;}
+  const d=new Date(T.t0*1000);
+  $('tdate').textContent=d.toLocaleString('hr-HR',{dateStyle:'medium',timeStyle:'short'})+' · '+fmtKm(T.dist)+' · '+fmtT(T.dur);
+}
+function idxAt(rel){
+  const m=T.mv;let lo=0,hi=m.length-1;if(rel<=m[0])return 0;if(rel>=m[hi])return Math.max(0,hi-1);
+  while(hi-lo>1){const k=(lo+hi)>>1;if(m[k]<=rel)lo=k;else hi=k;}return lo;}
+function stateAt(rel){
+  const p=T.pts,m=T.mv,i=idxAt(rel),j=Math.min(i+1,p.length-1),a=p[i],b=p[j];
+  const f=(m[j]>m[i]&&!b[3])?Math.min(1,Math.max(0,(rel-m[i])/(m[j]-m[i]))):(rel>=m[j]&&j>i?1:0);
+  const pos=[a[0]+(b[0]-a[0])*f,a[1]+(b[1]-a[1])*f];
+  const dist=T.cum[i]+(T.cum[j]-T.cum[i])*f;
+  // brzina u prozoru ±15 s
+  const ia=idxAt(rel-15),ib=Math.min(idxAt(rel+15)+1,p.length-1);
+  const dt=m[ib]-m[ia],spd=dt>0?(T.cum[ib]-T.cum[ia])/dt:0;
+  // smjer: ~25 m naprijed, a na kraju ~25 m unatrag
+  let k=j;while(k<p.length-1&&T.cum[k]-dist<25)k++;
+  let h;
+  if(T.cum[k]-dist>=15) h=brg(pos,p[k]);
+  else {let q=i;while(q>0&&dist-T.cum[q]<25)q--;h=brg(p[q],pos);}
+  return {pos,dist,spd,h,i,f};
+}
+
+// ---------- karta ----------
+const map=new maplibregl.Map({
+  container:'map',
+  attributionControl:{compact:true},
+  style:{version:8,
+    sources:{
+      sat:{type:'raster',tiles:['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],tileSize:256,maxzoom:19,attribution:'Snimke © Esri, Maxar, Earthstar Geographics'},
+      dem:{type:'raster-dem',tiles:['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'],tileSize:256,maxzoom:14,encoding:'terrarium',attribution:'Teren: Mapzen/AWS Terrain Tiles'}
+    },
+    layers:[{id:'sat',type:'raster',source:'sat'}],
+    terrain:{source:'dem',exaggeration:1.4},
+    sky:{'sky-color':'#7fb6e6','horizon-color':'#d8e8f3','fog-color':'#d8e8f3','sky-horizon-blend':0.6,'horizon-fog-blend':0.5,'fog-ground-blend':0.6}
+  },
+  center:[16.2,44.6],zoom:6,pitch:30,maxPitch:85
+});
+map.addControl(new maplibregl.NavigationControl({visualizePitch:true}),'top-right');
+
+const empty={type:'FeatureCollection',features:[]};
+const ml=c=>({type:'Feature',geometry:{type:'MultiLineString',coordinates:c},properties:{}});
+let mapReady=false;
+map.on('load',()=>{
+  map.addSource('full',{type:'geojson',data:empty});
+  map.addSource('done',{type:'geojson',data:empty});
+  map.addSource('boat',{type:'geojson',data:empty});
+  const lay={'line-cap':'round','line-join':'round'};
+  map.addLayer({id:'full-casing',type:'line',source:'full',paint:{'line-color':'#000','line-opacity':.35,'line-width':7},layout:lay});
+  map.addLayer({id:'full',type:'line',source:'full',paint:{'line-color':'#ffffff','line-opacity':.55,'line-width':3},layout:lay});
+  map.addLayer({id:'done-glow',type:'line',source:'done',paint:{'line-color':'#ff5a1f','line-width':12,'line-blur':8,'line-opacity':.6},layout:lay});
+  map.addLayer({id:'done',type:'line',source:'done',paint:{'line-color':'#ff7a3d','line-width':5},layout:lay});
+  map.addLayer({id:'boat-halo',type:'circle',source:'boat',paint:{'circle-radius':16,'circle-color':'#ff5a1f','circle-opacity':.3,'circle-pitch-alignment':'map'}});
+  map.addLayer({id:'boat',type:'circle',source:'boat',paint:{'circle-radius':7,'circle-color':'#ff5a1f','circle-stroke-color':'#fff','circle-stroke-width':3,'circle-pitch-alignment':'map'}});
+  mapReady=true;
+  if(T){drawFull();render(false);overview(0);}
+  else msg('Otvorite turu u OpenTracksu i dodirnite ikonu karte, ili učitajte KMZ/GPX datoteku.');
+});
+
+// ---------- prikaz i reprodukcija ----------
+let rel=0,playing=false,last=0,camH=null;
+const camZoom=()=>T.dist<1500?17.3:T.dist<8000?16.3:15.6;
+const camPad=()=>({top:map.getContainer().clientHeight*0.3,bottom:0,left:0,right:0});
+function rate(){const v=$('rate').value;return v==='auto'?Math.max(1,T.dur/40):+v;}
+function drawFull(){ if(mapReady&&T) map.getSource('full').setData(ml(T.segs)); }
+function setLines(st){
+  const segs=[];let cur=[];
+  for(let k=0;k<=st.i;k++){const p=T.pts[k];if(p[3]&&cur.length){segs.push(cur);cur=[];}cur.push([p[0],p[1]]);}
+  const nxt=T.pts[Math.min(st.i+1,T.pts.length-1)];
+  if(!(nxt[3]&&st.f<1))cur.push(st.pos);
+  segs.push(cur);
+  map.getSource('done').setData(ml(segs));
+  map.getSource('boat').setData({type:'Feature',geometry:{type:'Point',coordinates:st.pos},properties:{}});
+}
+function render(moveCam,ease){
+  if(!T||!mapReady)return;
+  const st=stateAt(rel);setLines(st);
+  $('sDist').textContent=fmtKm(st.dist);$('sTime').textContent=fmtT(rel);
+  $('sSpd').textContent=fmtKmh(st.spd);$('sAvg').textContent=fmtKmh(rel>0?st.dist/rel:0);
+  $('seek').value=T.dur>0?Math.round(rel/T.dur*1000):0;
+  if(moveCam&&$('follow').checked){
+    if(camH===null)camH=st.h;
+    const d=((st.h-camH+540)%360)-180;
+    camH=(camH+d*(ease?0.5:0.06)+360)%360;
+    const cam={center:st.pos,bearing:camH,pitch:68,zoom:camZoom(),padding:camPad()};
+    if(ease)map.easeTo({...cam,duration:900,easing:x=>x});else map.jumpTo(cam);
+  }
+}
+function frame(ts){
+  if(!playing)return;
+  const dt=Math.min(0.1,(ts-last)/1000);last=ts;
+  rel+=dt*rate();
+  if(rel>=T.dur){rel=T.dur;render(true);stop();setTimeout(()=>live?followLive():overview(),600);return;}
+  render(true);requestAnimationFrame(frame);
+}
+function start(){
+  if(!T)return;
+  if(rel>=T.dur-0.5)rel=0;
+  playing=true;$('play').textContent='❚❚ Pauza';
+  const st=stateAt(rel);camH=st.h;
+  if($('follow').checked){
+    map.flyTo({center:st.pos,bearing:st.h,pitch:68,zoom:camZoom(),padding:camPad(),duration:2200,essential:true});
+    map.once('moveend',()=>{if(playing){last=performance.now();requestAnimationFrame(frame);}});
+  }else{last=performance.now();requestAnimationFrame(frame);}
+}
+function stop(){playing=false;$('play').textContent=live?'▶ Reprodukcija':'▶ Kreni';}
+function overview(duration=2000){
+  if(!T||!mapReady)return;
+  const b=new maplibregl.LngLatBounds();T.pts.forEach(p=>b.extend([p[0],p[1]]));
+  map.fitBounds(b,{padding:{top:90,bottom:map.getContainer().clientHeight*0.32+20,left:40,right:40},pitch:55,bearing:-20,duration,maxZoom:17});
+}
+function followLive(){ if(!T)return; rel=T.dur; render(true,true); }
+
+$('play').onclick=()=>playing?stop():start();
+$('seek').oninput=e=>{if(!T)return;rel=e.target.value/1000*T.dur;render(true);};
+$('overview').onclick=()=>{stop();$('follow').checked=false;overview();};
+$('follow').onchange=()=>{if($('follow').checked&&!playing){camH=null;live?followLive():render(true);}};
+
+// ---------- API za Android (OpenTracks) ----------
+window.KJ={
+  reset(isLive){
+    stop();raw=[];T=null;rel=0;camH=null;live=!!isLive;trackName='Kajak';
+    document.body.classList.toggle('is-live',live);
+    $('play').textContent=live?'▶ Reprodukcija':'▶ Kreni';
+    if(mapReady){map.getSource('full').setData(empty);map.getSource('done').setData(empty);map.getSource('boat').setData(empty);}
+    msg(live?'Čekam GPS točke…':'Učitavam turu…');
+  },
+  setName(n){trackName=n||'Kajak';header();},
+  addPoints(arr,first){
+    for(const p of arr)raw.push(p);
+    const atEnd=!T||rel>=T.dur-0.5;
+    if(!rebuild()){ if(first&&!live)msg('U turi nema dovoljno GPS točaka.'); return; }
+    document.body.classList.remove('empty');msg('');header();drawFull();
+    if(first){
+      if(live){$('follow').checked=true;followLive();}
+      else{rel=0;render(false);overview();}
+    }else if(live&&!playing&&atEnd&&$('follow').checked){followLive();}
+    else if(live&&!playing&&atEnd){rel=T.dur;render(false);}
+  },
+  error(t){msg(t);}
+};
+
+// ---------- učitavanje datoteka (KMZ/KML/GPX) ----------
+async function unzipFirstKml(buf){
+  const dv=new DataView(buf),u8=new Uint8Array(buf);
+  let e=-1;for(let i=buf.byteLength-22;i>=Math.max(0,buf.byteLength-65557);i--){if(dv.getUint32(i,true)===0x06054b50){e=i;break;}}
+  if(e<0)throw new Error('KMZ datoteka nije ispravna.');
+  let off=dv.getUint32(e+16,true);const n=dv.getUint16(e+10,true);
+  for(let k=0;k<n;k++){
+    const method=dv.getUint16(off+10,true),csize=dv.getUint32(off+20,true),nl=dv.getUint16(off+28,true),xl=dv.getUint16(off+30,true),cl=dv.getUint16(off+32,true),lho=dv.getUint32(off+42,true);
+    const fname=new TextDecoder().decode(u8.subarray(off+46,off+46+nl));
+    off+=46+nl+xl+cl;
+    if(!/\.kml$/i.test(fname))continue;
+    const ds=lho+30+dv.getUint16(lho+26,true)+dv.getUint16(lho+28,true);
+    const data=u8.subarray(ds,ds+csize);
+    if(method===0)return new TextDecoder().decode(data);
+    if(method!==8)throw new Error('Nepodržana kompresija u KMZ-u.');
+    const s=new Blob([data]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
+    return await new Response(s).text();
+  }
+  throw new Error('U KMZ-u nema KML datoteke.');
+}
+function parseKml(txt){
+  const doc=new DOMParser().parseFromString(txt,'application/xml');
+  const out=[];
+  const tracks=[...doc.getElementsByTagName('*')].filter(el=>el.localName==='Track');
+  for(const tr of tracks){
+    let when=null,firstInTrack=true;
+    for(const el of tr.children){
+      if(el.localName==='when')when=Date.parse(el.textContent.trim())/1000;
+      else if(el.localName==='coord'){const c=el.textContent.trim().split(/\s+/).map(Number);if(c.length>=2&&when!=null&&!isNaN(c[0])){out.push([c[0],c[1],when,firstInTrack&&out.length?1:0]);firstInTrack=false;}when=null;}
+    }
+  }
+  const nm=doc.getElementsByTagName('name')[0];
+  return {pts:out,name:nm?nm.textContent.trim():''};
+}
+function parseGpx(txt){
+  const doc=new DOMParser().parseFromString(txt,'application/xml');
+  const out=[];
+  for(const seg of doc.getElementsByTagName('trkseg')){
+    let firstInSeg=true;
+    for(const p of seg.getElementsByTagName('trkpt')){
+      const t=p.getElementsByTagName('time')[0];if(!t)continue;
+      out.push([+p.getAttribute('lon'),+p.getAttribute('lat'),Date.parse(t.textContent.trim())/1000,firstInSeg&&out.length?1:0]);firstInSeg=false;
+    }
+  }
+  const nm=doc.getElementsByTagName('name')[0];
+  return {pts:out,name:nm?nm.textContent.trim():''};
+}
+$('fileIn').onchange=async e=>{
+  const f=e.target.files[0];if(!f)return;
+  msg('Učitavam '+f.name+' …');
+  try{
+    const head=new Uint8Array(await f.slice(0,2).arrayBuffer());
+    const isZip=head[0]===0x50&&head[1]===0x4b;
+    const txt=isZip?await unzipFirstKml(await f.arrayBuffer()):await f.text();
+    const r=/<gpx[\s>]/i.test(txt.slice(0,2000))?parseGpx(txt):parseKml(txt);
+    KJ.reset(false);
+    KJ.setName(r.name||f.name.replace(/\.[^.]+$/,''));
+    KJ.addPoints(r.pts,true);
+    if(!T)msg('U datoteci nema dovoljno točaka s vremenom.');
+  }catch(err){msg(err.message||'Datoteku nije moguće pročitati.');}
+  e.target.value='';
+};
+}
+</script>
+</body>
+</html>

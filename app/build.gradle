@@ -1,0 +1,46 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'hr.kajak3d'
+    compileSdk 36
+
+    defaultConfig {
+        applicationId 'hr.kajak3d'
+        minSdk 26
+        targetSdk 36
+        versionCode Integer.parseInt(System.getenv('BUILD_NUMBER') ?: '1')
+        versionName "1.0." + (System.getenv('BUILD_NUMBER') ?: '1')
+    }
+
+    signingConfigs {
+        // Fiksni ključ da se nove verzije mogu instalirati preko stare.
+        kajak {
+            storeFile file('kajak3d.keystore')
+            storePassword 'kajak3d'
+            keyAlias 'kajak3d'
+            keyPassword 'kajak3d'
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.kajak
+        }
+        debug {
+            signingConfig signingConfigs.kajak
+        }
+    }
+
+    lint {
+        checkReleaseBuilds false
+        abortOnError false
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}

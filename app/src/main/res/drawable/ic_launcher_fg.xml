@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <!-- brda -->
+    <path android:fillColor="#2F7A5B" android:pathData="M22,66 L42,40 L54,54 L64,44 L86,66 Z"/>
+    <!-- voda -->
+    <path android:fillColor="#1C6FA3" android:pathData="M22,66 L86,66 L86,80 L22,80 Z"/>
+    <!-- trag -->
+    <path android:strokeColor="#FF5A1F" android:strokeWidth="4" android:strokeLineCap="round"
+        android:pathData="M28,76 C40,70 50,78 62,72 S78,68 82,70"/>
+    <!-- kajak -->
+    <path android:fillColor="#FFFFFF" android:pathData="M44,62 Q54,58 66,62 Q54,65 44,62 Z"/>
+    <path android:strokeColor="#FFFFFF" android:strokeWidth="2" android:strokeLineCap="round"
+        android:pathData="M48,52 L62,70"/>
+</vector>
