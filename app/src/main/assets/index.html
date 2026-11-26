@@ -13,7 +13,7 @@ html,body{margin:0;height:100%;background:#0b1116;color:var(--ink);font:15px/1.4
 body{display:flex;flex-direction:column;height:100%}
 #mapwrap{position:relative;flex:1 1 auto;min-height:0}
 #map{position:absolute;inset:0;background:linear-gradient(#5d9bd1,#b9d6ee 40%)}
-.panel{flex:0 0 auto;max-height:36%;overflow-y:auto;background:#0f1820;border-top:1px solid #22313c;padding:10px 12px calc(10px + env(safe-area-inset-bottom))}
+.panel{flex:0 0 auto;max-height:25%;overflow-y:auto;background:#0f1820;border-top:1px solid #22313c;padding:8px 12px calc(10px + env(safe-area-inset-bottom))}
 .head{display:flex;gap:8px;align-items:center;margin-bottom:8px}
 .title{flex:1;min-width:0}
 .title b{display:block;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -23,27 +23,29 @@ body.is-live .live{display:inline-block}
 .file{background:#26323c;border-radius:10px;padding:0 10px;height:40px;display:flex;align-items:center;cursor:pointer;font-size:14px;white-space:nowrap}
 .file input{display:none}
 #fold{min-width:44px;padding:0;font-size:18px}
-.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-bottom:8px}
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-bottom:6px}
 .stats div{min-width:0}
 .stats small{display:block;color:var(--dim);font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.stats b{font-size:clamp(15px,4.6vw,22px);font-variant-numeric:tabular-nums;white-space:nowrap}
+.stats b{font-size:clamp(14px,4.3vw,20px);font-variant-numeric:tabular-nums;white-space:nowrap}
 .row{display:flex;gap:8px;align-items:center}
 button,select{height:44px;border:0;border-radius:10px;background:#26323c;color:var(--ink);font:inherit;font-size:15px;padding:0 12px}
 button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
-#play{background:var(--acc);color:#fff;font-weight:600;min-width:84px}
+#play{background:var(--acc);color:#fff;font-weight:600;min-width:56px;font-size:18px}
 #seek{flex:1;accent-color:var(--acc);height:44px;min-width:0}
 .opts{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;align-items:center}
 .attr{color:#6f7d88;font-size:10px;margin-top:6px}
 .opts label{display:flex;align-items:center;gap:6px;color:var(--dim);font-size:13px}
-body.folded .controls,body.folded .file{display:none}
-body.folded .stats{margin-bottom:0}
+.extra{display:none;padding-top:8px}
+body.more .extra{display:block}
+body.more .panel{max-height:60%}
+#more{min-width:48px;padding:0;font-size:20px}
+.title{margin-bottom:6px}
 #msg{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--glass);padding:14px 18px;border-radius:12px;display:none;width:min(86%,420px);text-align:center}
 .maplibregl-ctrl-attrib{font-size:10px}
 body.empty .stats,body.empty .controls{display:none}
-@media(max-width:360px){.stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(orientation:landscape) and (max-height:600px){
   body{flex-direction:row}
-  .panel{max-height:none;width:34%;flex:0 0 34%;border-top:0;border-left:1px solid #22313c}
+  .panel{max-height:none;width:26%;flex:0 0 26%;min-width:220px;border-top:0;border-left:1px solid #22313c}
   .stats{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
 </style>
@@ -51,33 +53,31 @@ body.empty .stats,body.empty .controls{display:none}
 <body class="empty">
 <div id="mapwrap"><div id="map"></div><div id="msg"></div></div>
 <div class="panel">
-  <div class="head">
-    <div class="title"><b><span id="tname">Kajak 3D</span><i class="live">UŽIVO</i></b><span id="tdate">Satelitska karta s reljefom</span></div>
-    <label class="file">Datoteka<input id="fileIn" type="file"></label>
-    <button id="fold" aria-label="Smanji ili proširi traku">▾</button>
-  </div>
   <div class="stats">
     <div><small>Udaljenost</small><b id="sDist">0,00 km</b></div>
     <div><small>Vrijeme</small><b id="sTime">0:00</b></div>
     <div><small>Brzina</small><b id="sSpd">0,0 km/h</b></div>
     <div><small>Prosjek</small><b id="sAvg">0,0 km/h</b></div>
   </div>
-  <div class="controls">
-    <div class="row">
-      <button id="play">▶ Kreni</button>
-      <input id="seek" type="range" min="0" max="1000" value="0" aria-label="Položaj u reprodukciji">
-    </div>
+  <div class="row controls">
+    <button id="play" aria-label="Pokreni ili pauziraj">▶</button>
+    <input id="seek" type="range" min="0" max="1000" value="0" aria-label="Položaj u reprodukciji">
+    <button id="more" aria-label="Više opcija">⋯</button>
+  </div>
+  <div class="extra">
+    <div class="title"><b><span id="tname">Kajak 3D</span><i class="live">UŽIVO</i></b><span id="tdate">Satelitska karta s reljefom</span></div>
     <div class="opts">
-      <label><select id="rate" aria-label="Brzina reprodukcije">
-          <option value="auto" selected>Brzina: auto</option>
-          <option value="1">1×</option><option value="5">5×</option><option value="20">20×</option>
-          <option value="60">60×</option><option value="200">200×</option>
-        </select></label>
+      <select id="rate" aria-label="Brzina reprodukcije">
+        <option value="auto" selected>Brzina: auto</option>
+        <option value="1">1×</option><option value="5">5×</option><option value="20">20×</option>
+        <option value="60">60×</option><option value="200">200×</option>
+      </select>
       <label><input id="follow" type="checkbox" checked> Kamera prati</label>
       <button id="overview">Cijela ruta</button>
+      <label class="file">Datoteka<input id="fileIn" type="file"></label>
     </div>
+    <div class="attr">Snimke © Esri, Maxar, Earthstar Geographics · Teren: Mapzen/AWS</div>
   </div>
-  <div class="attr">Snimke © Esri, Maxar, Earthstar Geographics · Teren: Mapzen/AWS</div>
 </div>
 <script>
 {
@@ -176,8 +176,8 @@ map.on('load',()=>{
 
 // ---------- prikaz i reprodukcija ----------
 let rel=0,playing=false,last=0,camH=null;
-const camZoom=()=>T.dist<1500?17.4:16.8;
-const camPad=()=>({top:map.getContainer().clientHeight*0.22,bottom:0,left:0,right:0});
+const camZoom=()=>T.dist<1500?17.2:16.5;
+const camPad=()=>({top:map.getContainer().clientHeight*0.25,bottom:0,left:0,right:0});
 function rate(){const v=$('rate').value;return v==='auto'?Math.max(1,T.dur/40):+v;}
 function drawFull(){ if(mapReady&&T) map.getSource('full').setData(ml(T.segs)); }
 function setLines(st){
@@ -199,7 +199,7 @@ function render(moveCam,ease){
     if(camH===null)camH=st.h;
     const d=((st.h-camH+540)%360)-180;
     camH=(camH+d*(ease?0.5:0.06)+360)%360;
-    const cam={center:st.pos,bearing:camH,pitch:55,zoom:camZoom(),padding:camPad()};
+    const cam={center:st.pos,bearing:camH,padding:camPad()};
     if(ease)map.easeTo({...cam,duration:900,easing:x=>x});else map.jumpTo(cam);
   }
 }
@@ -213,23 +213,27 @@ function frame(ts){
 function start(){
   if(!T)return;
   if(rel>=T.dur-0.5)rel=0;
-  playing=true;$('play').textContent='❚❚ Pauza';
+  playing=true;$('play').textContent='❚❚';
   const st=stateAt(rel);camH=st.h;
   if($('follow').checked){
-    map.flyTo({center:st.pos,bearing:st.h,pitch:55,zoom:camZoom(),padding:camPad(),duration:2200,essential:true});
+    const keep=map.getZoom()>15;map.flyTo({center:st.pos,bearing:st.h,pitch:keep?map.getPitch():50,zoom:keep?map.getZoom():camZoom(),padding:camPad(),duration:keep?900:2200,essential:true});
     map.once('moveend',()=>{if(playing){last=performance.now();requestAnimationFrame(frame);}});
   }else{last=performance.now();requestAnimationFrame(frame);}
 }
-function stop(){playing=false;$('play').textContent=live?'▶ Reprodukcija':'▶ Kreni';}
+function stop(){playing=false;$('play').textContent='▶';}
 function overview(duration=2000){
   if(!T||!mapReady)return;
   const b=new maplibregl.LngLatBounds();T.pts.forEach(p=>b.extend([p[0],p[1]]));
   map.fitBounds(b,{padding:{top:50,bottom:30,left:30,right:50},pitch:45,bearing:-20,duration,maxZoom:17});
 }
-function followLive(){ if(!T)return; rel=T.dur; render(true,true); }
+function followLive(first){
+  if(!T)return; rel=T.dur;
+  if(first){const st=stateAt(rel);camH=st.h;render(false);map.flyTo({center:st.pos,bearing:st.h,pitch:50,zoom:camZoom(),padding:camPad(),duration:1500});return;}
+  render(true,true);
+}
 
 $('play').onclick=()=>playing?stop():start();
-$('fold').onclick=()=>{const f=document.body.classList.toggle('folded');$('fold').textContent=f?'▴':'▾';};
+$('more').onclick=()=>{const m=document.body.classList.toggle('more');$('more').textContent=m?'✕':'⋯';};
 new ResizeObserver(()=>map.resize()).observe($('mapwrap'));
 $('seek').oninput=e=>{if(!T)return;rel=e.target.value/1000*T.dur;render(true);};
 $('overview').onclick=()=>{stop();$('follow').checked=false;overview();};
@@ -240,7 +244,7 @@ window.KJ={
   reset(isLive){
     stop();raw=[];T=null;rel=0;camH=null;live=!!isLive;trackName='Kajak';
     document.body.classList.toggle('is-live',live);
-    $('play').textContent=live?'▶ Reprodukcija':'▶ Kreni';
+    $('play').textContent='▶';
     if(mapReady){map.getSource('full').setData(empty);map.getSource('done').setData(empty);map.getSource('boat').setData(empty);}
     msg(live?'Čekam GPS točke…':'Učitavam turu…');
   },
@@ -251,7 +255,7 @@ window.KJ={
     if(!rebuild()){ if(first&&!live)msg('U turi nema dovoljno GPS točaka.'); return; }
     document.body.classList.remove('empty');msg('');header();drawFull();
     if(first){
-      if(live){$('follow').checked=true;followLive();}
+      if(live){$('follow').checked=true;followLive(true);}
       else{rel=0;render(false);overview();}
     }else if(live&&!playing&&atEnd&&$('follow').checked){followLive();}
     else if(live&&!playing&&atEnd){rel=T.dur;render(false);}
