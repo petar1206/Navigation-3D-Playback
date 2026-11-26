@@ -12,33 +12,35 @@
 html,body{margin:0;height:100%;background:#0b1116;color:var(--ink);font:15px/1.4 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;overflow:hidden}
 body{display:flex;flex-direction:column;height:100%}
 #mapwrap{position:relative;flex:1 1 auto;min-height:0}
-#map{position:absolute;inset:0}
-.panel{flex:0 0 auto;max-height:42%;overflow-y:auto;background:#0f1820;border-top:1px solid #22313c;padding:10px 12px calc(10px + env(safe-area-inset-bottom))}
+#map{position:absolute;inset:0;background:linear-gradient(#5d9bd1,#b9d6ee 40%)}
+.panel{flex:0 0 auto;max-height:36%;overflow-y:auto;background:#0f1820;border-top:1px solid #22313c;padding:10px 12px calc(10px + env(safe-area-inset-bottom))}
 .head{display:flex;gap:8px;align-items:center;margin-bottom:8px}
 .title{flex:1;min-width:0}
 .title b{display:block;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .title span{display:block;color:var(--dim);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .live{display:none;margin-left:6px;background:#d92626;color:#fff;border-radius:6px;padding:1px 6px;font-size:12px;font-weight:700;vertical-align:2px;font-style:normal}
 body.is-live .live{display:inline-block}
-.file{background:#26323c;border-radius:10px;padding:0 12px;height:40px;display:flex;align-items:center;cursor:pointer;font-size:14px;white-space:nowrap}
+.file{background:#26323c;border-radius:10px;padding:0 10px;height:40px;display:flex;align-items:center;cursor:pointer;font-size:14px;white-space:nowrap}
 .file input{display:none}
 #fold{min-width:44px;padding:0;font-size:18px}
 .stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-bottom:8px}
 .stats div{min-width:0}
 .stats small{display:block;color:var(--dim);font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.stats b{font-size:clamp(16px,4.4vw,22px);font-variant-numeric:tabular-nums;white-space:nowrap}
+.stats b{font-size:clamp(15px,4.6vw,22px);font-variant-numeric:tabular-nums;white-space:nowrap}
 .row{display:flex;gap:8px;align-items:center}
 button,select{height:44px;border:0;border-radius:10px;background:#26323c;color:var(--ink);font:inherit;font-size:15px;padding:0 12px}
 button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
 #play{background:var(--acc);color:#fff;font-weight:600;min-width:84px}
 #seek{flex:1;accent-color:var(--acc);height:44px;min-width:0}
 .opts{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;align-items:center}
+.attr{color:#6f7d88;font-size:10px;margin-top:6px}
 .opts label{display:flex;align-items:center;gap:6px;color:var(--dim);font-size:13px}
 body.folded .controls,body.folded .file{display:none}
 body.folded .stats{margin-bottom:0}
 #msg{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--glass);padding:14px 18px;border-radius:12px;display:none;width:min(86%,420px);text-align:center}
 .maplibregl-ctrl-attrib{font-size:10px}
 body.empty .stats,body.empty .controls{display:none}
+@media(max-width:360px){.stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(orientation:landscape) and (max-height:600px){
   body{flex-direction:row}
   .panel{max-height:none;width:34%;flex:0 0 34%;border-top:0;border-left:1px solid #22313c}
@@ -51,12 +53,12 @@ body.empty .stats,body.empty .controls{display:none}
 <div class="panel">
   <div class="head">
     <div class="title"><b><span id="tname">Kajak 3D</span><i class="live">UŽIVO</i></b><span id="tdate">Satelitska karta s reljefom</span></div>
-    <label class="file">Otvori datoteku<input id="fileIn" type="file"></label>
+    <label class="file">Datoteka<input id="fileIn" type="file"></label>
     <button id="fold" aria-label="Smanji ili proširi traku">▾</button>
   </div>
   <div class="stats">
     <div><small>Udaljenost</small><b id="sDist">0,00 km</b></div>
-    <div><small>Vrijeme kretanja</small><b id="sTime">0:00</b></div>
+    <div><small>Vrijeme</small><b id="sTime">0:00</b></div>
     <div><small>Brzina</small><b id="sSpd">0,0 km/h</b></div>
     <div><small>Prosjek</small><b id="sAvg">0,0 km/h</b></div>
   </div>
@@ -66,9 +68,8 @@ body.empty .stats,body.empty .controls{display:none}
       <input id="seek" type="range" min="0" max="1000" value="0" aria-label="Položaj u reprodukciji">
     </div>
     <div class="opts">
-      <label>Brzina
-        <select id="rate">
-          <option value="auto" selected>Auto (~40 s)</option>
+      <label><select id="rate" aria-label="Brzina reprodukcije">
+          <option value="auto" selected>Brzina: auto</option>
           <option value="1">1×</option><option value="5">5×</option><option value="20">20×</option>
           <option value="60">60×</option><option value="200">200×</option>
         </select></label>
@@ -76,6 +77,7 @@ body.empty .stats,body.empty .controls{display:none}
       <button id="overview">Cijela ruta</button>
     </div>
   </div>
+  <div class="attr">Snimke © Esri, Maxar, Earthstar Geographics · Teren: Mapzen/AWS</div>
 </div>
 <script>
 {
@@ -140,15 +142,14 @@ function stateAt(rel){
 // ---------- karta ----------
 const map=new maplibregl.Map({
   container:'map',
-  attributionControl:{compact:true},
+  attributionControl:false,
   style:{version:8,
     sources:{
       sat:{type:'raster',tiles:['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],tileSize:256,maxzoom:19,attribution:'Snimke © Esri, Maxar, Earthstar Geographics'},
       dem:{type:'raster-dem',tiles:['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'],tileSize:256,maxzoom:14,encoding:'terrarium',attribution:'Teren: Mapzen/AWS Terrain Tiles'}
     },
     layers:[{id:'sat',type:'raster',source:'sat'}],
-    terrain:{source:'dem',exaggeration:1.4},
-    sky:{'sky-color':'#7fb6e6','horizon-color':'#d8e8f3','fog-color':'#d8e8f3','sky-horizon-blend':0.6,'horizon-fog-blend':0.5,'fog-ground-blend':0.6}
+    terrain:{source:'dem',exaggeration:1.15}
   },
   center:[16.2,44.6],zoom:6,pitch:30,maxPitch:85
 });
@@ -166,8 +167,8 @@ map.on('load',()=>{
   map.addLayer({id:'full',type:'line',source:'full',paint:{'line-color':'#ffffff','line-opacity':.55,'line-width':3},layout:lay});
   map.addLayer({id:'done-glow',type:'line',source:'done',paint:{'line-color':'#ff5a1f','line-width':12,'line-blur':8,'line-opacity':.6},layout:lay});
   map.addLayer({id:'done',type:'line',source:'done',paint:{'line-color':'#ff7a3d','line-width':5},layout:lay});
-  map.addLayer({id:'boat-halo',type:'circle',source:'boat',paint:{'circle-radius':16,'circle-color':'#ff5a1f','circle-opacity':.3,'circle-pitch-alignment':'map'}});
-  map.addLayer({id:'boat',type:'circle',source:'boat',paint:{'circle-radius':7,'circle-color':'#ff5a1f','circle-stroke-color':'#fff','circle-stroke-width':3,'circle-pitch-alignment':'map'}});
+  map.addLayer({id:'boat-halo',type:'circle',source:'boat',paint:{'circle-radius':20,'circle-color':'#ff5a1f','circle-opacity':.35,'circle-pitch-alignment':'map'}});
+  map.addLayer({id:'boat',type:'circle',source:'boat',paint:{'circle-radius':9,'circle-color':'#ff5a1f','circle-stroke-color':'#fff','circle-stroke-width':3,'circle-pitch-alignment':'map'}});
   mapReady=true;
   if(T){drawFull();render(false);overview(0);}
   else msg('Otvorite turu u OpenTracksu i dodirnite ikonu karte, ili učitajte KMZ/GPX datoteku.');
@@ -175,8 +176,8 @@ map.on('load',()=>{
 
 // ---------- prikaz i reprodukcija ----------
 let rel=0,playing=false,last=0,camH=null;
-const camZoom=()=>T.dist<1500?17.3:T.dist<8000?16.3:15.6;
-const camPad=()=>({top:map.getContainer().clientHeight*0.35,bottom:0,left:0,right:0});
+const camZoom=()=>T.dist<1500?17.4:16.8;
+const camPad=()=>({top:map.getContainer().clientHeight*0.22,bottom:0,left:0,right:0});
 function rate(){const v=$('rate').value;return v==='auto'?Math.max(1,T.dur/40):+v;}
 function drawFull(){ if(mapReady&&T) map.getSource('full').setData(ml(T.segs)); }
 function setLines(st){
@@ -198,7 +199,7 @@ function render(moveCam,ease){
     if(camH===null)camH=st.h;
     const d=((st.h-camH+540)%360)-180;
     camH=(camH+d*(ease?0.5:0.06)+360)%360;
-    const cam={center:st.pos,bearing:camH,pitch:68,zoom:camZoom(),padding:camPad()};
+    const cam={center:st.pos,bearing:camH,pitch:55,zoom:camZoom(),padding:camPad()};
     if(ease)map.easeTo({...cam,duration:900,easing:x=>x});else map.jumpTo(cam);
   }
 }
@@ -215,7 +216,7 @@ function start(){
   playing=true;$('play').textContent='❚❚ Pauza';
   const st=stateAt(rel);camH=st.h;
   if($('follow').checked){
-    map.flyTo({center:st.pos,bearing:st.h,pitch:68,zoom:camZoom(),padding:camPad(),duration:2200,essential:true});
+    map.flyTo({center:st.pos,bearing:st.h,pitch:55,zoom:camZoom(),padding:camPad(),duration:2200,essential:true});
     map.once('moveend',()=>{if(playing){last=performance.now();requestAnimationFrame(frame);}});
   }else{last=performance.now();requestAnimationFrame(frame);}
 }
@@ -223,7 +224,7 @@ function stop(){playing=false;$('play').textContent=live?'▶ Reprodukcija':'▶
 function overview(duration=2000){
   if(!T||!mapReady)return;
   const b=new maplibregl.LngLatBounds();T.pts.forEach(p=>b.extend([p[0],p[1]]));
-  map.fitBounds(b,{padding:{top:50,bottom:30,left:30,right:50},pitch:55,bearing:-20,duration,maxZoom:17});
+  map.fitBounds(b,{padding:{top:50,bottom:30,left:30,right:50},pitch:45,bearing:-20,duration,maxZoom:17});
 }
 function followLive(){ if(!T)return; rel=T.dur; render(true,true); }
 

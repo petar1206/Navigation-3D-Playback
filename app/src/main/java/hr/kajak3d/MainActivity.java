@@ -73,6 +73,7 @@ public class MainActivity extends Activity {
         s.setDomStorageEnabled(true);
         s.setAllowFileAccess(false);
         s.setAllowContentAccess(false);
+        s.setTextZoom(100); // ne povećavaj slova prema postavkama sustava, inače se raspored lomi
 
         web.setWebViewClient(new WebViewClient() {
             @Override
